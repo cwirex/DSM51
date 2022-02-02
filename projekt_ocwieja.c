@@ -20,7 +20,7 @@ __xdata unsigned char * led_led = (__xdata unsigned char *) 0xFF38; //bufor wybi
 __code unsigned char WZOR[10] = {0b0111111, 0b0000110, 0b1011011, 0b1001111,
                                  0b1100110, 0b1101101, 0b1111101, 0b0000111, 0b1111111, 0b1101111};
 unsigned char Aktualne[6] = {0, 0, 0, 0, 0, 0};
-
+unsigned char iter;
 unsigned char pwm;
 unsigned char tSec;     // 64 x 100hz aby otrzymać sekundę
 unsigned char t100;
@@ -47,6 +47,8 @@ void main(){
     tSec = 192;
     t100 = 255;
     led_b = 1;
+    iter = 0;
+    seg_update();
     TR0 = True;
     TR1 = True;
     while(True){
@@ -64,11 +66,11 @@ void main(){
 }
 
 void seg_serv(){
-    SEG_OFF = 1; // OFF
+    SEG_off = 1; // OFF
     *led_wyb = led_b;
     *led_led = Aktualne[iter];
-    SEG_OFF = 0; // ON
-    if(P3_5) { // Odczyt klawiatury (czy wciśnięty klawisz przy danym segmencie)
+    SEG_off = 0; // ON
+    if(P3_5 && !key_timer) { // Odczyt klawiatury (czy wciśnięty klawisz przy danym segmencie)
         key = led_b;
     }
 }
@@ -111,9 +113,14 @@ void seg_update(void) {
 
 void t0_serv(void){
     if(t100 < 100){  // 6,4k Hz
-        if(t100%17==2){ // przydzielenie ok. 64hz na każdy z segmentów
+        if(t100%10) {
             seg_serv();
             led_b += led_b;
+            iter += 1;
+            if (iter > 5) {
+                led_b = 1;
+                iter = 0;
+            }
         }
         if(t100 == pwm){
             *I8255b = pwmLow;
@@ -122,16 +129,19 @@ void t0_serv(void){
     }
     else{   // 64 Hz
         t100 = 0;
-        led_b = 1;
         if(pwm) {
             *I8255b = pwmHigh;
             LED_off = False;
+        }
+        else{
+            *I8255b = pwmLow;
+            LED_off = True;
         }
         if(!key_timer){
             if(key != 0) {
                 key_serv();
                 key = 0;
-                key_timer = 234;
+                key_timer = 240;
             }
         }
         else{
