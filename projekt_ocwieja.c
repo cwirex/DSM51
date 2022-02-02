@@ -17,6 +17,8 @@ __xdata unsigned char *I8255r = (__xdata unsigned char *) 0xFF2B; // rejestr
 unsigned char pwm;
 unsigned char tSec;     // 64 x 100hz aby otrzymać sekundę
 unsigned char t100;
+unsigned char send_buf;
+
 
 void rec_serv(void);
 void send_serv(void);
@@ -33,7 +35,8 @@ void main(){
     TH1 = 0xFD; TL1 = 0xFD;
     tSec = 192;
     t100 = 255;
-
+    TR0 = True;
+    TR1 = True;
     while(True){
         if (rec_f) {         //odebrany bajt w buf. UART
             rec_f = False;   //kasuj flagę bajt odebrany
@@ -91,6 +94,6 @@ void sio_int(void) __interrupt(4)
     }
     else {
         RI = False; //zeruj flagę odbioru znaku
-        rec_fl = True; //ustaw flagę odebrania znaku
+        rec_f = True; //ustaw flagę odebrania znaku
     }
 }
