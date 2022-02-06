@@ -12,6 +12,7 @@ __bit t0_f;
 __bit rec_f;
 __bit send_f;
 __bit pwm_STOP;
+__bit pwm_SET;
 __code unsigned char string[sSize*7] = {'>','1', '.', 'C','h','a','n', 'g', 'e',' ','s','t', 'a', 't', 'e', ' ', ' ', '>', '1', '.', '1', '.', 'S', 't', 'a', 'r', 't', ' ', ' ', ' ', ' ', ' ', '>', '1', '.', '2', '.', 'S', 't', 'o', 'p', ' ', ' ', ' ', ' ', '>','2', '.', 'S','e','t','t', 'i', 'n','g','s', ' ', ' ', ' ', ' ', ' ', ' ', '>', '2', '.', '1', '.', 'P', 'W', 'M', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '>', '2', '.', '1', '.', '1', '.', ' ', '0', '3', '0', ' ', ' ', '>', '2', '.', '2', '.', 'R', 'e', 's', 'e', 't', ' ', ' ', ' '};
 
 __xdata unsigned char * LCD_WC = (__xdata unsigned char *) 0xFF80;  // write command
@@ -30,6 +31,7 @@ __code unsigned char WZOR[10] = {0b0111111, 0b0000110, 0b1011011, 0b1001111,
 unsigned char Aktualne[6] = {0, 0, 0, 0, 0, 0};
 unsigned char iter;
 unsigned char pwm;
+unsigned char pwm_prev;
 unsigned char tSec;     // 64 x 100hz aby otrzymać sekundę
 unsigned char t100;
 unsigned char send_buf;
@@ -97,33 +99,68 @@ void key_mult_read(){
     key_mult_prev = key_mult;
 }
 void key_mult_serve(){
-    if(key_mult == 255-128){ //enter
-        if(curr_string == 1)
+    if(key_mult == 255-128){ //// enter
+        if(curr_string == 1)        //start
             pwm_STOP = 0;
-        else if(curr_string == 2)
+        else if(curr_string == 2)   //stop
             pwm_STOP = 1;
-        else if(curr_string == 6){
+        else if(curr_string == 6){  //reset
             pwm = 30;
             seg_update();
         }
+        else if(curr_string == 5){   //pwm_set
+            if(pwm_SET){
+                pwm_SET = 0;
+            }
+            else{
+                pwm_SET = 1;
+                pwm_prev = pwm;
+            }
+        }
     }else if(key_mult == 255-64){ //esc
-
+        if(pwm_SET){
+            pwm_SET = 0;
+            pwm = pwm_prev;
+        }
     }else if(key_mult == 255-32){ //dol
-        if (curr_string < 6)
-            curr_string += 1;
-        else
-            curr_string = 0;
-        display_strings();
+        if(pwm_SET){
+            if(pwm != 0)
+                pwm-=1;
+        }
+        else {
+
+            if (curr_string < 6)
+                curr_string += 1;
+            else
+                curr_string = 0;
+            display_strings();
+        }
     }else if(key_mult == 255-16){ //gora
-        if(curr_string > 0)
-            curr_string -= 1;
-        else
-            curr_string = 6;
-        display_strings();
+        if(pwm_SET){
+            if(pwm != 50)
+                pwm+=1;
+        }
+        else {
+            if (curr_string > 0)
+                curr_string -= 1;
+            else
+                curr_string = 6;
+            display_strings();
+        }
     }else if(key_mult == 255-8){ //prawo
-        pwm += 5;
+        if(pwm_SET){
+            pwm += 10;
+            if(pwm > 50){
+                pwm = 50;
+            }
+        }
     }else if(key_mult == 255-4){ //lewo
-        pwm += 6;
+        if(pwm_SET){
+            pwm -= 10;
+            if(pwm > 100){
+                pwm = 0;
+            }
+        }
     }
     seg_update();
 }
