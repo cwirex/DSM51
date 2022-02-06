@@ -10,10 +10,17 @@ __bit __at (0x97) LED_off;
 __bit __at (0x96) SEG_off;
 __bit t0_f;
 __bit rec_f;
-__bit send_f;
+__bit send_f1;
+__bit send_f2;
 __bit pwm_STOP;
 __bit pwm_SET;
-__code unsigned char string[sSize*7] = {'>','1', '.', 'C','h','a','n', 'g', 'e',' ','s','t', 'a', 't', 'e', ' ', ' ', '>', '1', '.', '1', '.', 'S', 't', 'a', 'r', 't', ' ', ' ', ' ', ' ', ' ', '>', '1', '.', '2', '.', 'S', 't', 'o', 'p', ' ', ' ', ' ', ' ', '>','2', '.', 'S','e','t','t', 'i', 'n','g','s', ' ', ' ', ' ', ' ', ' ', ' ', '>', '2', '.', '1', '.', 'P', 'W', 'M', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '>', '2', '.', '1', '.', '1', '.', ' ', '0', '3', '0', ' ', ' ', '>', '2', '.', '2', '.', 'R', 'e', 's', 'e', 't', ' ', ' ', ' '};
+__code unsigned char string[sSize*7] = {'>','1', '.', 'C','h','a','n', 'g', 'e',' ','s','t', 'a', 't', 'e', ' ', ' ',
+                                        '>', '1', '.', '1', '.', 'S', 't', 'a', 'r', 't', ' ', ' ', ' ', ' ', ' ',
+                                        '>', '1', '.', '2', '.', 'S', 't', 'o', 'p', ' ', ' ', ' ', ' ',
+                                        '>','2', '.', 'S','e','t','t', 'i', 'n','g','s', ' ', ' ', ' ', ' ', ' ', ' ',
+                                        '>', '2', '.', '1', '.', 'P', 'W', 'M', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+                                        '>', '2', '.', '1', '.', '1', '.', ' ', 'S', 'E', 'T', ' ', ' ',
+                                        '>', '2', '.', '2', '.', 'R', 'e', 's', 'e', 't', ' ', ' ', ' '};
 
 __xdata unsigned char * LCD_WC = (__xdata unsigned char *) 0xFF80;  // write command
 __xdata unsigned char * LCD_WD = (__xdata unsigned char *) 0xFF81;  // write data
@@ -44,6 +51,7 @@ void rec_serv(void);
 void send_serv(void);
 void t0_serv(void);
 void key_mult_read();
+void pwm_to_str();
 void seg_serv();
 void seg_update();
 void key_serv();
@@ -68,7 +76,7 @@ void main(){
     TL0 = T0val;
     TH1 = 0xFD;
     TL1 = 0xFD;
-    tSec = 192;
+    tSec = 64;
     t100 = 255;
     led_b = 1;
     iter = 0;
@@ -81,8 +89,14 @@ void main(){
             rec_f = False;   //kasuj flagę bajt odebrany
             rec_serv();         //obsłuz odebrany bajt
         }
-        if (send_f)          //trzeba wysłać dane UART
+        if (send_f1) {          //trzeba wysłać dane UART
+            send_buf = pwm/10 + 0x30;
             send_serv();        //wykonaj obsługę nadawania
+        }
+        if(send_f2 && tSec == 60){
+            send_buf = pwm%10 + 0x30;
+            send_serv();
+        }
         if (t0_f) {          //przerwanie zegarowe
             t0_f = False;    //zeruj flagę
             t0_serv();          //obsłuz przerwanie od T0
@@ -243,6 +257,11 @@ void t0_serv(void){
         else{
             key_timer+=1;
         }
+        tSec--;
+        if(!tSec){
+            send_f1 = True;
+            tSec = 64;
+        }
     }
 }
 void rec_serv(void){
@@ -250,13 +269,19 @@ void rec_serv(void){
     if (( uc >= 'a' ) && ( uc < 'z' + 1 ))
         uc += 'A' - 'a';        //zamień małą na wielką
     send_buf = uc;          //zapamiętaj w buforze
-    send_f = True;          //ustaw flagę gotowości danych
+    send_f1 = True;          //ustaw flagę gotowości danych
 }
 void send_serv(void){
     if (TI)             //nadajnik nie jest gotowy
         return;
     SBUF = send_buf;    //wyślij bajt
-    send_f = False;  //zeruj flagę nadawania bajtu
+    if(send_f1) {
+        send_f1 = False;  //zeruj flagę nadawania bajtu
+        send_f2 = True;
+    }
+    else if(send_f2)
+        send_f2 = False;
+
 }
 void display_strings(){
     await();
