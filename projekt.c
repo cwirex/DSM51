@@ -1,3 +1,4 @@
+// Obsługa wyświetlacza, zegarów, zestawu klawiatur, portów, generowanie sygnału PWM
 #include "8051.h"
 
 #define True 1
